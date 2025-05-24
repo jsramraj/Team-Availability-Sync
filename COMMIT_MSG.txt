@@ -1,0 +1,8 @@
+feat: Initial implementation of Google Calendar OOO sync extension
+
+This commit includes:
+- Core functionality to sync OOO events to team calendars
+- Google OAuth integration for secure calendar access
+- Comprehensive UI for managing sync configurations
+- Automatic sync functionality with configurable schedules
+- Proper filtering and detection of Out-of-Office events
