@@ -165,6 +165,7 @@
               
               statusDiv.textContent = 'Syncing OOO events to team calendars...';
               
+              // Using incremental sync (only changes since last sync)
               return fetch('/calendar/sync', {
                 method: 'POST',
                 headers: {
@@ -196,14 +197,14 @@
                   // Events were found but already synced
                   statusDiv.className = 'alert alert-info mt-2';
                   statusDiv.textContent = `No new events to sync: ${result.skipped.length} events were already synced to team calendars.`;
-                } else if (result.message && result.message.includes('No OOO events found')) {
-                  // No OOO events found in calendar
+                } else if (result.info && result.info.eventCount > 0) {
+                  // Events were found but couldn't be synced for some reason
+                  statusDiv.className = 'alert alert-warning mt-2';
+                  statusDiv.textContent = `Found ${result.info.eventCount} OOO events, but couldn't sync them. Check team calendar permissions.`;
+                } else {
+                  // No OOO events found
                   statusDiv.className = 'alert alert-warning mt-2';
                   statusDiv.textContent = 'No OOO events found in your calendar. Try adding events with "Out of Office" or "OOO" in the title.';
-                } else {
-                  // Generic success message
-                  statusDiv.className = 'alert alert-info mt-2';
-                  statusDiv.textContent = result.message || 'Sync completed.';
                 }
                 
                 // Create a details section if there's additional info
@@ -213,9 +214,22 @@
                   detailsDiv.innerHTML = `
                     <strong>Time Range:</strong> ${result.info.timeRange.from} to ${result.info.timeRange.to}<br>
                     <strong>Team Calendars:</strong> ${result.info.teamCalendarCount}<br>
-                    <strong>OOO Events Found:</strong> ${result.info.eventCount || 0}
+                    <strong>OOO Events Found:</strong> ${result.info.eventCount || 0}<br>
+                    <strong>Sync Type:</strong> ${result.info.syncType || 'incremental'} 
+                    ${result.info.syncType === 'incremental' ? 
+                      '<a href="#" id="force-full-sync">(Force Full Sync)</a>' : 
+                      ''}
                   `;
                   statusDiv.appendChild(detailsDiv);
+                  
+                  // Add event listener for full sync link
+                  const forceFullSyncLink = document.getElementById('force-full-sync');
+                  if (forceFullSyncLink) {
+                    forceFullSyncLink.addEventListener('click', function(e) {
+                      e.preventDefault();
+                      performFullSync(statusDiv, refreshBtn);
+                    });
+                  }
                 }
                 
                 // Automatically reload after a delay
@@ -236,6 +250,69 @@
         });
       }
     });
+    
+    // Function to perform a full sync
+    function performFullSync(statusDiv, refreshBtn) {
+      if (statusDiv) {
+        statusDiv.className = 'alert alert-info mt-2';
+        statusDiv.textContent = 'Performing full sync (checking all events)...';
+      }
+      
+      if (refreshBtn) {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Syncing...';
+      }
+      
+      fetch('/calendar/full-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Full sync failed: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(result => {
+        if (statusDiv && result) {
+          statusDiv.className = 'alert alert-success mt-2';
+          statusDiv.textContent = result.message || 'Full sync completed successfully.';
+          
+          // Create a details section if there's additional info
+          if (result.info) {
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'mt-2 small';
+            detailsDiv.innerHTML = `
+              <strong>Time Range:</strong> ${result.info.timeRange.from} to ${result.info.timeRange.to}<br>
+              <strong>Team Calendars:</strong> ${result.info.teamCalendarCount}<br>
+              <strong>OOO Events Found:</strong> ${result.info.eventCount || 0}<br>
+              <strong>Sync Type:</strong> ${result.info.syncType || 'full'}
+            `;
+            statusDiv.appendChild(detailsDiv);
+          }
+        }
+        
+        // Automatically reload after a delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 5000);
+      })
+      .catch(error => {
+        console.error('Error during full sync:', error);
+        if (statusDiv) {
+          statusDiv.className = 'alert alert-danger mt-2';
+          statusDiv.textContent = `Error: ${error.message || 'Unknown error during sync operation'}`;
+        }
+      })
+      .finally(() => {
+        if (refreshBtn) {
+          refreshBtn.disabled = false;
+          refreshBtn.textContent = 'Sync Now';
+        }
+      });
+    }
   </script>
 </body>
 </html>

@@ -3,7 +3,8 @@ const { setCredentials } = require('../auth/googleAuth');
 const { 
   getUserCalendars, 
   getOOOEvents,
-  syncOOOToTeamCalendars
+  syncOOOToTeamCalendars,
+  fullSyncProcess
 } = require('../calendar/calendarService');
 const router = express.Router();
 
@@ -34,7 +35,10 @@ router.get('/ooo-events', isAuthenticated, async (req, res) => {
     const timeMin = req.query.timeMin || new Date().toISOString();
     const timeMax = req.query.timeMax || new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString();
     
+    console.log('Fetching OOO events for UI display');
+    // We'll use the same method that's used for syncing to ensure consistency
     const events = await getOOOEvents(auth, timeMin, timeMax);
+    console.log(`Returning ${events.length} OOO events for display`);
     res.json(events);
   } catch (error) {
     console.error('Error fetching OOO events:', error);
@@ -65,37 +69,34 @@ router.post('/sync', isAuthenticated, async (req, res) => {
     const timeMin = req.body.timeMin || new Date().toISOString();
     const timeMax = req.body.timeMax || new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString();
     
-    // Get OOO events from user's calendar
-    const oooEvents = await getOOOEvents(auth, timeMin, timeMax);
-    
-    if (oooEvents.length === 0) {
-      // No OOO events found, but this isn't an error - just return early with info
-      // Store sync configuration in session anyway to track last sync attempt
-      req.session.syncConfig = {
-        teamCalendarIds,
-        userDisplayName,
-        lastSync: new Date().toISOString()
-      };
-      
-      return res.json({ 
-        success: [], 
-        errors: [],
-        skipped: [],
-        message: 'No OOO events found to sync.',
-        info: {
-          timeRange: {
-            from: new Date(timeMin).toLocaleDateString(),
-            to: new Date(timeMax).toLocaleDateString()
-          },
-          teamCalendarCount: teamCalendarIds.length
-        }
-      });
+    // Get the last sync time from the session if available
+    let lastSyncTime = null;
+    if (req.session.syncConfig && req.session.syncConfig.lastSync) {
+      lastSyncTime = req.session.syncConfig.lastSync;
+      console.log(`Using incremental sync with last sync time: ${lastSyncTime}`);
+    } else {
+      console.log('No previous sync found, performing full sync');
     }
     
-    // Sync events to team calendars
-    const results = await syncOOOToTeamCalendars(auth, oooEvents, teamCalendarIds, userDisplayName);
+    // Force a full sync if requested
+    if (req.body.forceFullSync) {
+      console.log('Force full sync requested, ignoring last sync time');
+      lastSyncTime = null;
+    }
     
-    // Store sync configuration in session
+    console.log(`Starting ${lastSyncTime ? 'incremental' : 'full'} sync process`);
+    
+    // Use the updated fullSyncProcess that supports incremental updates
+    const results = await fullSyncProcess(
+      auth, 
+      timeMin, 
+      timeMax, 
+      teamCalendarIds, 
+      userDisplayName,
+      lastSyncTime
+    );
+    
+    // Store sync configuration in session with current timestamp
     req.session.syncConfig = {
       teamCalendarIds,
       userDisplayName,
@@ -104,12 +105,32 @@ router.post('/sync', isAuthenticated, async (req, res) => {
     
     // Add some additional metadata to the response
     let messageText = '';
+    
     if (results.success.length > 0) {
-      messageText = `Sync completed. ${results.success.length} events synced successfully.`;
-    } else if (results.skipped.length > 0) {
-      messageText = `No new events to sync. ${results.skipped.length} events were already synced.`;
+      const addedCount = results.sync.success.length;
+      const deletedCount = results.deletedCount || 0;
+      
+      if (addedCount > 0 && deletedCount > 0) {
+        messageText = `Sync completed. Added ${addedCount} events and removed ${deletedCount} deleted events.`;
+      } else if (addedCount > 0) {
+        messageText = `Sync completed. Added ${addedCount} events.`;
+      } else if (deletedCount > 0) {
+        messageText = `Sync completed. Removed ${deletedCount} deleted events.`;
+      } else {
+        messageText = `Sync completed.`;
+      }
+    } else if (results.skipped && results.skipped.length > 0) {
+      const deletedCount = results.deletedCount || 0;
+      
+      if (deletedCount > 0) {
+        messageText = `Sync completed. No new events to add, but removed ${deletedCount} deleted events.`;
+      } else {
+        messageText = `No new events to sync. ${results.skipped.length} events were already synced.`;
+      }
+    } else if (results.eventCount === 0) {
+      messageText = 'No OOO events found to sync.';
     } else {
-      messageText = 'No OOO events found that matched the criteria.';
+      messageText = 'Sync completed, but no changes were made.';
     }
     
     results.message = messageText;
@@ -119,8 +140,10 @@ router.post('/sync', isAuthenticated, async (req, res) => {
         to: new Date(timeMax).toLocaleDateString()
       },
       syncTime: new Date().toISOString(),
-      eventCount: oooEvents.length,
-      teamCalendarCount: teamCalendarIds.length
+      eventCount: results.eventCount,
+      teamCalendarCount: teamCalendarIds.length,
+      deletedCount: results.deletedCount || 0,
+      syncType: results.syncType || (lastSyncTime ? 'incremental' : 'full')
     };
     
     res.json(results);
@@ -130,6 +153,39 @@ router.post('/sync', isAuthenticated, async (req, res) => {
       error: 'Failed to sync OOO events',
       message: error.message || 'An unexpected error occurred during sync',
       stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+    });
+  }
+});
+
+// Add a new route to force a full sync
+router.post('/full-sync', isAuthenticated, async (req, res) => {
+  try {
+    // Get the sync config from the session
+    const syncConfig = req.session.syncConfig;
+    
+    if (!syncConfig) {
+      return res.status(400).json({
+        error: 'No sync configuration found',
+        details: 'Please set up sync configuration first.'
+      });
+    }
+    
+    // Forward the request to the regular sync endpoint with forceFullSync flag
+    req.body = {
+      ...req.body,
+      teamCalendarIds: syncConfig.teamCalendarIds,
+      userDisplayName: syncConfig.userDisplayName,
+      forceFullSync: true
+    };
+    
+    // Call the regular sync handler
+    await router.handle(req, res, 'post', '/sync');
+    
+  } catch (error) {
+    console.error('Error performing full sync:', error);
+    res.status(500).json({ 
+      error: 'Failed to perform full sync',
+      message: error.message || 'An unexpected error occurred during sync'
     });
   }
 });
