@@ -1,88 +1,72 @@
-# Team Calendar OOO Sync
+# OOO Calendar Sync Google Workspace Add-on
 
-A Node.js application that automatically syncs individuals' Out of Office (OOO) events from their personal Google Calendar to designated team calendars.
+This Google Workspace Add-on automatically synchronizes your Out of Office (OOO) events from your personal calendar to team calendars, ensuring your team is always aware of your availability.
+
+> **Note:** This project has been migrated from a Node.js application to a Google Workspace Add-on using Google Apps Script (GAS).
 
 ## Features
 
-- OAuth 2.0 authentication with Google Calendar API
-- Smart detection of Out of Office events based on keywords
-- Sync OOO events to multiple team calendars
-- Manual and automatic sync options (every 6 hours)
-- User-friendly interface for configuration
+- Automatically syncs events with "OOO", "Out of Office", "Vacation", or "Leave" in the title or description
+- Works directly within Google Calendar
+- Simple setup process to select which team calendars should receive your OOO events
+- Manual sync option with detailed results
+- Automatic background sync every 6 hours
 
-## Prerequisites
+## Deployment Instructions
 
-- Node.js (v14 or higher)
-- Google Cloud Platform account with Calendar API enabled
-- Google OAuth 2.0 credentials
+### Option 1: Deploy as a personal script (for testing)
 
-## Installation
+1. Go to [Google Apps Script](https://script.google.com/home) and create a new project
+2. Delete any code in the default `Code.gs` file
+3. Copy and paste the contents of `Code.gs` from this repository into the editor
+4. Create a new file called `appsscript.json` by clicking File > New > Script file
+5. Copy and paste the contents of `appsscript.json` from this repository
+6. Save the project with File > Save
+7. Deploy the project:
+   - Click Deploy > New deployment
+   - Select "Deploy as Add-on" as the deployment type
+   - Set deployment configuration to "Install add-on for myself" or "Install add-on for domain"
+   - Click Deploy
+8. After deployment, refresh your Google Calendar and look for the add-on in the side panel
 
-1. Clone the repository:
-```
-git clone https://github.com/yourusername/team-calender.git
-cd team-calender
-```
+### Option 2: Deploy to Google Workspace Marketplace (for your organization)
 
-2. Install dependencies:
-```
-npm install
-```
+1. Follow steps 1-6 from Option 1
+2. Create a Google Cloud Platform project:
+   - Go to the [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project
+   - Enable the Google Workspace Marketplace SDK
+3. Configure the Google Workspace Marketplace SDK:
+   - Set up your app's listing information, including name, description, and icons
+   - Configure the app's URL and scopes based on your Google Apps Script project
+4. Publish to Google Workspace Marketplace:
+   - Complete the publisher verification process if needed
+   - Submit your app for review
+   - Once approved, your app will be available in the Google Workspace Marketplace
 
-3. Create a `.env` file in the root directory with your Google API credentials:
-```
-CLIENT_ID=YOUR_GOOGLE_CLIENT_ID
-CLIENT_SECRET=YOUR_GOOGLE_CLIENT_SECRET
-REDIRECT_URI=http://localhost:3000/auth/callback
-PORT=3000
-```
+## Usage Instructions
 
-## Google API Setup
+1. Install the add-on from Google Workspace Marketplace or via direct deployment
+2. Open Google Calendar
+3. Click on the OOO Calendar Sync icon in the side panel
+4. Click "Set Up Sync" to configure:
+   - Enter your display name (how your name will appear in team calendars)
+   - Select the team calendars where your OOO events should appear
+5. Click "Save Configuration" to save settings and perform initial sync
+6. Your OOO events will now automatically sync to selected team calendars
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project
-3. Enable the Google Calendar API
-4. Configure the OAuth consent screen
-5. Create OAuth 2.0 credentials (Web application type)
-6. Add `http://localhost:3000/auth/callback` as an authorized redirect URI
-7. Copy the Client ID and Client Secret to your `.env` file
+## Requirements
 
-## Usage
+- Google Workspace account (G Suite)
+- Access to one or more shared team calendars with write permissions
 
-1. Start the application:
-```
-node index.js
-```
+## Privacy & Security
 
-2. Open your browser and navigate to `http://localhost:3000`
-3. Click "Get Started" and log in with your Google account
-4. Configure your sync settings:
-   - Enter your display name
-   - Select team calendars to sync with
-   - Enable automatic sync if desired
-5. Click "Save Configuration" to start the initial sync
+- This add-on only accesses calendar data to perform the sync function
+- No data is stored outside of your Google Workspace account
+- Configuration settings are stored in user properties within Google Apps Script
+- The add-on requires calendar read/write permissions to function properly
 
-## How it Works
+## Original Node.js Project
 
-1. The application uses the Google Calendar API to detect events that look like Out of Office time (based on keywords like "OOO", "vacation", "leave", etc.)
-2. When an OOO event is detected, it creates corresponding events in the selected team calendars
-3. The event in the team calendar is marked with the user's name and "OOO" prefix
-4. If automatic sync is enabled, the app will check for new or modified OOO events every 6 hours
-
-## Permissions
-
-The application requires the following Google Calendar permissions:
-- `https://www.googleapis.com/auth/calendar.readonly` - To read your personal calendar events
-- `https://www.googleapis.com/auth/calendar.events` - To create events in team calendars
-
-## Deployment
-
-For production deployment, consider:
-- Using a database to store user configurations instead of in-memory storage
-- Setting up proper session management with a production-ready session store
-- Implementing proper error handling and logging
-- Using HTTPS with a valid SSL certificate
-
-## License
-
-MIT
+The original Node.js implementation has been deprecated in favor of the Google Workspace Add-on approach. The code remains in this repository for reference purposes but is no longer maintained.
