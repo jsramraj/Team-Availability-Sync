@@ -1,5 +1,5 @@
 /**
- * OOO Calendar Sync - Google Workspace Add-on
+ * Team Availability Sync - Google Workspace Add-on
  * 
  * This Add-on automatically syncs Out of Office (OOO) events 
  * from a user's calendar to their team calendars.
@@ -27,9 +27,9 @@ function createHomepageCard() {
   
   // Add header
   card.setHeader(CardService.newCardHeader()
-    .setTitle('OOO Calendar Sync')
+    .setTitle('Team Availability Sync')
     .setSubtitle('Sync your OOO events to team calendars')
-    .setImageUrl('https://www.gstatic.com/images/icons/material/system/1x/event_busy_black_48dp.png'));
+    .setImageUrl('https://raw.githubusercontent.com/MuscleMadness/datasource/main/team-calender.png'));
   
   // Add main section
   const mainSection = CardService.newCardSection()
@@ -84,7 +84,7 @@ function showSetupCard(e) {
   
   // Add header
   card.setHeader(CardService.newCardHeader()
-    .setTitle('Set Up OOO Calendar Sync')
+    .setTitle('Set Up Team Availability Sync')
     .setSubtitle('Select team calendars for sync'));
   
   // Create section for display name
@@ -481,5 +481,5 @@ function setupTrigger() {
     .everyHours(syncFrequency)
     .create();
     
-  Logger.log('Trigger set up: OOO Calendar Sync will run every ' + syncFrequency + ' hours');
+  Logger.log('Trigger set up: Team Availability Sync will run every ' + syncFrequency + ' hours');
 }

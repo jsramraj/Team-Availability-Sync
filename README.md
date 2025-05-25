@@ -1,4 +1,4 @@
-# OOO Calendar Sync Google Workspace Add-on
+# Team Availability Sync Google Workspace Add-on
 
 This Google Workspace Add-on automatically synchronizes your Out of Office (OOO) events from your personal calendar to team calendars, ensuring your team is always aware of your availability.
 
@@ -48,7 +48,7 @@ This Google Workspace Add-on automatically synchronizes your Out of Office (OOO)
 
 1. Install the add-on from Google Workspace Marketplace or via direct deployment
 2. Open Google Calendar
-3. Click on the OOO Calendar Sync icon in the side panel
+3. Click on the Team Availability Sync icon in the side panel
 4. Click "Set Up Sync" to configure:
    - Enter your display name (how your name will appear in team calendars)
    - Select the team calendars where your OOO events should appear
