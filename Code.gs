@@ -29,7 +29,7 @@ function createHomepageCard() {
   card.setHeader(CardService.newCardHeader()
     .setTitle('Team Availability Sync')
     .setSubtitle('Sync your OOO events to team calendars')
-    .setImageUrl('https://raw.githubusercontent.com/MuscleMadness/datasource/main/team-calender.png'));
+    .setImageUrl('https://raw.githubusercontent.com/MuscleMadness/datasource/main/team-calender.jpeg'));
   
   // Add main section
   const mainSection = CardService.newCardSection()
