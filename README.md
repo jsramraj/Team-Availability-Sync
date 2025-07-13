@@ -4,9 +4,22 @@ This Google Workspace Add-on automatically synchronizes your Out of Office (OOO)
 
 > **Note:** This project has been migrated from a Node.js application to a Google Workspace Add-on using Google Apps Script (GAS).
 
+
+## Special Event Detection
+
+This add-on automatically detects and syncs Out of Office (OOO) events to your team calendars. The following keywords are used to identify special events in your calendar:
+
+- `OOO`
+- `Out of Office`
+- `Vacation`
+- `Leave`
+- `PTO`
+
+These keywords are detected in both the event title and description. Events that only occur on weekends (Saturday and Sunday) are ignored and will not be synced.
+
 ## Features
 
-- Automatically syncs events with "OOO", "Out of Office", "Vacation", or "Leave" in the title or description
+- Automatically syncs events with the above keywords in the title or description
 - Works directly within Google Calendar
 - Simple setup process to select which team calendars should receive your OOO events
 - Manual sync option with detailed results

@@ -54,9 +54,19 @@ function createHomepageCard() {
     mainSection.addWidget(CardService.newTextParagraph()
       .setText('Your OOO events are being synced to team calendars.'));
     
-    const lastSync = userProperties.getProperty('lastSync') || 'Never';
+    let lastSync = userProperties.getProperty('lastSyncTime');
+    let lastSyncDisplay = 'Never';
+    if (lastSync) {
+      try {
+        // Convert to local time string
+        const date = new Date(lastSync);
+        lastSyncDisplay = date.toLocaleString();
+      } catch (e) {
+        lastSyncDisplay = lastSync;
+      }
+    }
     mainSection.addWidget(CardService.newTextParagraph()
-      .setText('Last synced: ' + lastSync));
+      .setText('Last synced: ' + lastSyncDisplay));
     
     mainSection.addWidget(CardService.newButtonSet()
       .addButton(CardService.newTextButton()
@@ -284,7 +294,7 @@ function syncEvents(e) {
       events = userCalendar.getEvents(now, threeMonthsLater);
     }
     
-    // Filter for OOO events
+    // Filter for OOO events (including PTO)
     const oooEvents = events.filter(function(event) {
       const title = event.getTitle().toLowerCase();
       const description = event.getDescription() ? event.getDescription().toLowerCase() : '';
@@ -293,8 +303,10 @@ function syncEvents(e) {
                     title.includes('out of office') || 
                     title.includes('vacation') || 
                     title.includes('leave') ||
+                    title.includes('pto') ||
                     description.includes('ooo') ||
-                    description.includes('out of office');
+                    description.includes('out of office') ||
+                    description.includes('pto');
       
       if (isOoo) {
         // Store this event's ID as a current OOO event
@@ -332,22 +344,21 @@ function syncEvents(e) {
             if (title.startsWith(displayName + ' - ') && 
                 description.includes('Automatically synced from ' + displayName)) {
               
-              // Extract the original title (remove the displayName prefix)
-              const originalTitle = title.substring((displayName + ' - ').length);
-              
-              // Store team event with a key that can be recreated from source events
-              const syncKey = originalTitle + '|' + teamEvent.getStartTime().getTime() + '|' + teamEvent.getEndTime().getTime();
-              syncedEventsMap.set(syncKey, teamEvent);
+              // Extract the source event ID from the description
+              const sourceEventIdMatch = description.match(/Source Event ID: ([^\n]+)/);
+              if (sourceEventIdMatch) {
+                const sourceEventId = sourceEventIdMatch[1];
+                syncedEventsMap.set(sourceEventId, teamEvent);
+              }
             }
           });
           
           // Process each OOO event from the user's calendar
           oooEvents.forEach(function(event) {
-            // Create a key for this event
-            const eventKey = event.getTitle() + '|' + event.getStartTime().getTime() + '|' + event.getEndTime().getTime();
+            const sourceEventId = event.getId();
             
             // Check if this event already exists in the team calendar
-            const existingEvent = syncedEventsMap.get(eventKey);
+            const existingEvent = syncedEventsMap.get(sourceEventId);
             
             if (!existingEvent) {
               // Create new event in team calendar
@@ -356,7 +367,9 @@ function syncEvents(e) {
                 event.getStartTime(),
                 event.getEndTime(),
                 {
-                  description: (event.getDescription() || '') + '\n\nAutomatically synced from ' + displayName + '\'s calendar',
+                  description: (event.getDescription() || '') + 
+                             '\n\nAutomatically synced from ' + displayName + '\'s calendar' +
+                             '\nSource Event ID: ' + sourceEventId,
                   location: event.getLocation(),
                   guests: event.getGuestList().map(guest => guest.getEmail()).join(','),
                   sendInvites: false
@@ -364,8 +377,40 @@ function syncEvents(e) {
               );
               syncedCount++;
             } else {
+              // Update existing event if needed
+              let needsUpdate = false;
+              
+              if (existingEvent.getTitle() !== displayName + ' - ' + event.getTitle()) {
+                existingEvent.setTitle(displayName + ' - ' + event.getTitle());
+                needsUpdate = true;
+              }
+              
+              if (existingEvent.getStartTime().getTime() !== event.getStartTime().getTime() ||
+                  existingEvent.getEndTime().getTime() !== event.getEndTime().getTime()) {
+                existingEvent.setTime(event.getStartTime(), event.getEndTime());
+                needsUpdate = true;
+              }
+              
+              if (existingEvent.getLocation() !== event.getLocation()) {
+                existingEvent.setLocation(event.getLocation());
+                needsUpdate = true;
+              }
+              
+              const newDescription = (event.getDescription() || '') + 
+                                   '\n\nAutomatically synced from ' + displayName + '\'s calendar' +
+                                   '\nSource Event ID: ' + sourceEventId;
+              
+              if (existingEvent.getDescription() !== newDescription) {
+                existingEvent.setDescription(newDescription);
+                needsUpdate = true;
+              }
+              
+              if (needsUpdate) {
+                syncedCount++;
+              }
+              
               // Mark this event as processed
-              syncedEventsMap.delete(eventKey);
+              syncedEventsMap.delete(sourceEventId);
             }
           });
           
