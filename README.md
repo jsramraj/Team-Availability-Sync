@@ -1,8 +1,14 @@
 # Team Availability Sync Google Workspace Add-on
 
-This Google Workspace Add-on automatically synchronizes your Out of Office (OOO) events from your personal calendar to team calendars, ensuring your team is always aware of your availability.
+## Get the Add-on
 
-> **Note:** This project has been migrated from a Node.js application to a Google Workspace Add-on using Google Apps Script (GAS).
+- [Install Team Availability Sync from Google Workspace Marketplace](https://workspace.google.com/marketplace/app/team_availability_sync/237987738880)
+
+## Demo Video
+
+- [Watch the demo on YouTube](https://www.youtube.com/watch?v=XDuewo9AQKs)
+
+This Google Workspace Add-on automatically synchronizes your Out of Office (OOO) events from your personal calendar to team calendars, ensuring your team is always aware of your availability.
 
 
 ## Special Event Detection
@@ -23,11 +29,11 @@ These keywords are detected in both the event title and description. Events that
 - Works directly within Google Calendar
 - Simple setup process to select which team calendars should receive your OOO events
 - Manual sync option with detailed results
-- Automatic background sync every 6 hours
+- Automatic background sync every 6 hours (configurable)
 
 ## Deployment Instructions
 
-### Option 1: Deploy as a personal script (for testing)
+### Deploy as a personal script (for testing)
 
 1. Go to [Google Apps Script](https://script.google.com/home) and create a new project
 2. Delete any code in the default `Code.gs` file
@@ -41,21 +47,6 @@ These keywords are detected in both the event title and description. Events that
    - Set deployment configuration to "Install add-on for myself" or "Install add-on for domain"
    - Click Deploy
 8. After deployment, refresh your Google Calendar and look for the add-on in the side panel
-
-### Option 2: Deploy to Google Workspace Marketplace (for your organization)
-
-1. Follow steps 1-6 from Option 1
-2. Create a Google Cloud Platform project:
-   - Go to the [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project
-   - Enable the Google Workspace Marketplace SDK
-3. Configure the Google Workspace Marketplace SDK:
-   - Set up your app's listing information, including name, description, and icons
-   - Configure the app's URL and scopes based on your Google Apps Script project
-4. Publish to Google Workspace Marketplace:
-   - Complete the publisher verification process if needed
-   - Submit your app for review
-   - Once approved, your app will be available in the Google Workspace Marketplace
 
 ## Usage Instructions
 
