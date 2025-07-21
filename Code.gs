@@ -1,9 +1,11 @@
 /**
  * Team Availability Sync - Google Workspace Add-on
- * 
- * This Add-on automatically syncs Out of Office (OOO) events 
+ *
+ * This Add-on automatically syncs Out of Office (OOO) events
  * from a user's calendar to their team calendars.
  */
+
+const APP_VERSION = '1.0.3'; // Update this when making significant changes
 
 /**
  * Runs when the add-on is installed.
@@ -24,63 +26,99 @@ function onHomepage(e) {
  */
 function createHomepageCard() {
   const card = CardService.newCardBuilder();
-  
+
   // Add header
-  card.setHeader(CardService.newCardHeader()
-    .setTitle('Team Availability Sync')
-    .setSubtitle('Sync your OOO events to team calendars')
-    .setImageUrl('https://raw.githubusercontent.com/MuscleMadness/datasource/main/team-calender.jpeg'));
-  
+  card.setHeader(
+    CardService.newCardHeader()
+      .setTitle("Team Availability Sync")
+      .setSubtitle("Sync your OOO events to team calendars")
+      .setImageUrl(
+        "https://raw.githubusercontent.com/MuscleMadness/datasource/main/team-calender.jpeg"
+      )
+  );
+
   // Add main section
-  const mainSection = CardService.newCardSection()
-    .addWidget(CardService.newTextParagraph()
-      .setText('This add-on automatically syncs your Out of Office events to selected team calendars.'));
-  
+  const mainSection = CardService.newCardSection().addWidget(
+    CardService.newTextParagraph().setText(
+      "This add-on automatically syncs your Out of Office events to selected team calendars."
+    )
+  );
+
   // Add setup button if not configured yet
   const userProperties = PropertiesService.getUserProperties();
-  const isConfigured = userProperties.getProperty('isConfigured');
-  
+  const isConfigured = userProperties.getProperty("isConfigured");
+
   if (!isConfigured) {
-    mainSection.addWidget(CardService.newTextParagraph()
-      .setText('You need to configure which team calendars should receive your OOO events.'));
-    
-    mainSection.addWidget(CardService.newButtonSet()
-      .addButton(CardService.newTextButton()
-        .setText('Set Up Sync')
-        .setOnClickAction(CardService.newAction()
-          .setFunctionName('showSetupCard'))));
+    mainSection.addWidget(
+      CardService.newTextParagraph().setText(
+        "You need to configure which team calendars should receive your OOO events."
+      )
+    );
+
+    mainSection.addWidget(
+      CardService.newButtonSet().addButton(
+        CardService.newTextButton()
+          .setText("Set Up Sync")
+          .setOnClickAction(
+            CardService.newAction().setFunctionName("showSetupCard")
+          )
+      )
+    );
   } else {
     // Show configured calendars and sync status
-    mainSection.addWidget(CardService.newTextParagraph()
-      .setText('Your OOO events are being synced to team calendars.'));
-    
-    let lastSync = userProperties.getProperty('lastSyncTime');
-    let lastSyncDisplay = 'Never';
+    mainSection.addWidget(
+      CardService.newTextParagraph().setText(
+        "Your OOO events are being synced to team calendars."
+      )
+    );
+
+    let lastSync = userProperties.getProperty("lastSyncTime");
+    let lastSyncDisplay = "Never";
     if (lastSync) {
       try {
-        // Convert to local time string
-        const date = new Date(lastSync);
-        lastSyncDisplay = date.toLocaleString();
+        // Use user's time zone for formatting
+        lastSyncDisplay = Utilities.formatDate(
+          new Date(lastSync),
+          "GMT",
+          "yyyy-MM-dd HH:mm:ss 'GMT'"
+        );
       } catch (e) {
         lastSyncDisplay = lastSync;
       }
     }
-    mainSection.addWidget(CardService.newTextParagraph()
-      .setText('Last synced: ' + lastSyncDisplay));
-    
-    mainSection.addWidget(CardService.newButtonSet()
-      .addButton(CardService.newTextButton()
-        .setText('Sync Now')
-        .setOnClickAction(CardService.newAction()
-          .setFunctionName('syncEvents')))
-      .addButton(CardService.newTextButton()
-        .setText('Modify Settings')
-        .setOnClickAction(CardService.newAction()
-          .setFunctionName('showSetupCard'))));
+    mainSection.addWidget(
+      CardService.newTextParagraph().setText(
+        "Last synced Test: " + lastSyncDisplay
+      )
+    );
+
+    mainSection.addWidget(
+      CardService.newButtonSet()
+        .addButton(
+          CardService.newTextButton()
+            .setText("Sync Now")
+            .setOnClickAction(
+              CardService.newAction().setFunctionName("syncEvents")
+            )
+        )
+        .addButton(
+          CardService.newTextButton()
+            .setText("Modify Settings")
+            .setOnClickAction(
+              CardService.newAction().setFunctionName("showSetupCard")
+            )
+        )
+    );
   }
-  
+
+  mainSection.addWidget(
+    CardService.newTextParagraph().setText(
+      "Version: " + APP_VERSION
+    )
+  );
+
   card.addSection(mainSection);
-  
+
   return CardService.newUniversalActionResponseBuilder()
     .displayAddOnCards([card.build()])
     .build();
@@ -91,64 +129,72 @@ function createHomepageCard() {
  */
 function showSetupCard(e) {
   const card = CardService.newCardBuilder();
-  
+
   // Add header
-  card.setHeader(CardService.newCardHeader()
-    .setTitle('Set Up Team Availability Sync')
-    .setSubtitle('Select team calendars for sync'));
-  
+  card.setHeader(
+    CardService.newCardHeader()
+      .setTitle("Set Up Team Availability Sync")
+      .setSubtitle("Select team calendars for sync")
+  );
+
   // Create section for display name
-  const displayNameSection = CardService.newCardSection()
-    .setHeader('Your Display Name');
-  
+  const displayNameSection =
+    CardService.newCardSection().setHeader("Your Display Name");
+
   // Get user's name from their Google account
   const user = Session.getActiveUser();
   const userEmail = user.getEmail();
-  const userName = userEmail.split('@')[0]; // Basic fallback
-  
+  const userName = userEmail.split("@")[0]; // Basic fallback
+
   // Get saved display name if available
   const userProperties = PropertiesService.getUserProperties();
-  const savedDisplayName = userProperties.getProperty('displayName') || userName;
-  
-  displayNameSection.addWidget(CardService.newTextInput()
-    .setFieldName('displayName')
-    .setTitle('Display Name')
-    .setValue(savedDisplayName)
-    .setHint('How your name should appear in team calendars'));
-  
+  const savedDisplayName =
+    userProperties.getProperty("displayName") || userName;
+
+  displayNameSection.addWidget(
+    CardService.newTextInput()
+      .setFieldName("displayName")
+      .setTitle("Display Name")
+      .setValue(savedDisplayName)
+      .setHint("How your name should appear in team calendars")
+  );
+
   card.addSection(displayNameSection);
-  
+
   // Create section for sync settings
-  const syncSettingsSection = CardService.newCardSection()
-    .setHeader('Sync Settings');
-  
+  const syncSettingsSection =
+    CardService.newCardSection().setHeader("Sync Settings");
+
   // Get saved sync frequency or use default (6 hours)
-  const savedSyncFrequency = userProperties.getProperty('syncFrequency') || '6';
-  
+  const savedSyncFrequency = userProperties.getProperty("syncFrequency") || "6";
+
   // Add dropdown for sync frequency
-  syncSettingsSection.addWidget(CardService.newSelectionInput()
-    .setType(CardService.SelectionInputType.DROPDOWN)
-    .setTitle('Automatic Sync Frequency')
-    .setFieldName('syncFrequency')
-    .addItem('1 hour', '1', savedSyncFrequency === '1')
-    .addItem('2 hours', '2', savedSyncFrequency === '2')
-    .addItem('4 hours', '4', savedSyncFrequency === '4')
-    .addItem('6 hours', '6', savedSyncFrequency === '6')
-    .addItem('12 hours', '12', savedSyncFrequency === '12')
-    .addItem('24 hours', '24', savedSyncFrequency === '24'));
-  
+  syncSettingsSection.addWidget(
+    CardService.newSelectionInput()
+      .setType(CardService.SelectionInputType.DROPDOWN)
+      .setTitle("Automatic Sync Frequency")
+      .setFieldName("syncFrequency")
+      .addItem("1 hour", "1", savedSyncFrequency === "1")
+      .addItem("2 hours", "2", savedSyncFrequency === "2")
+      .addItem("4 hours", "4", savedSyncFrequency === "4")
+      .addItem("6 hours", "6", savedSyncFrequency === "6")
+      .addItem("12 hours", "12", savedSyncFrequency === "12")
+      .addItem("24 hours", "24", savedSyncFrequency === "24")
+  );
+
   card.addSection(syncSettingsSection);
-  
+
   // Create section for calendar selection
-  const calendarSection = CardService.newCardSection()
-    .setHeader('Select Team Calendars');
-  
+  const calendarSection = CardService.newCardSection().setHeader(
+    "Select Team Calendars"
+  );
+
   // Get all available calendars
   const calendars = CalendarApp.getAllCalendars();
   const savedCalendarIds = getSavedCalendarIds();
-  
+
   if (calendars.length > 0) {
-    calendars.forEach(function(calendar) {
+    calendars.forEach(function (calendar) {
       // Only include calendars where the user has write access
       // Check if the calendar can be modified
       try {
@@ -156,45 +202,60 @@ function showSetupCard(e) {
         const calendarId = calendar.getId();
         const isSelected = savedCalendarIds.indexOf(calendarId) !== -1;
         const isWritable = calendar.isOwnedByMe();
-        
+
         if (isWritable) {
-          calendarSection.addWidget(CardService.newSelectionInput()
-            .setType(CardService.SelectionInputType.CHECK_BOX)
-            .setFieldName('calendar_' + calendarId)
-            .addItem(calendar.getName(), calendarId, isSelected));
+          calendarSection.addWidget(
+            CardService.newSelectionInput()
+              .setType(CardService.SelectionInputType.CHECK_BOX)
+              .setFieldName("calendar_" + calendarId)
+              .addItem(calendar.getName(), calendarId, isSelected)
+          );
         } else {
           // Add calendar with disabled checkbox for read-only calendars
-          calendarSection.addWidget(CardService.newSelectionInput()
-            .setType(CardService.SelectionInputType.CHECK_BOX)
-            .setFieldName('calendar_' + calendarId)
-            .addItem(calendar.getName() + ' (Read Only)', calendarId, false)
-            .setEnabled(false));
+          calendarSection.addWidget(
+            CardService.newSelectionInput()
+              .setType(CardService.SelectionInputType.CHECK_BOX)
+              .setFieldName("calendar_" + calendarId)
+              .addItem(calendar.getName() + " (Read Only)", calendarId, false)
+              .setEnabled(false)
+          );
         }
       } catch (error) {
-        Logger.log('Error checking calendar access: ' + error);
+        Logger.log("Error checking calendar access: " + error);
       }
     });
   } else {
-    calendarSection.addWidget(CardService.newTextParagraph()
-      .setText('No writable calendars found. Please create a team calendar or ask for write permissions.'));
+    calendarSection.addWidget(
+      CardService.newTextParagraph().setText(
+        "No writable calendars found. Please create a team calendar or ask for write permissions."
+      )
+    );
   }
-  
+
   card.addSection(calendarSection);
-  
+
   // Add save button
   const buttonSection = CardService.newCardSection();
-  buttonSection.addWidget(CardService.newButtonSet()
-    .addButton(CardService.newTextButton()
-      .setText('Save Configuration')
-      .setOnClickAction(CardService.newAction()
-        .setFunctionName('saveConfiguration')))
-    .addButton(CardService.newTextButton()
-      .setText('Cancel')
-      .setOnClickAction(CardService.newAction()
-        .setFunctionName('onHomepage'))));
-  
+  buttonSection.addWidget(
+    CardService.newButtonSet()
+      .addButton(
+        CardService.newTextButton()
+          .setText("Save Configuration")
+          .setOnClickAction(
+            CardService.newAction().setFunctionName("saveConfiguration")
+          )
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText("Cancel")
+          .setOnClickAction(
+            CardService.newAction().setFunctionName("onHomepage")
+          )
+      )
+  );
+
   card.addSection(buttonSection);
-  
+
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().pushCard(card.build()))
     .build();
@@ -205,12 +266,12 @@ function showSetupCard(e) {
  */
 function getSavedCalendarIds() {
   const userProperties = PropertiesService.getUserProperties();
-  const savedCalendarIds = userProperties.getProperty('teamCalendarIds');
-  
+  const savedCalendarIds = userProperties.getProperty("teamCalendarIds");
+
   if (savedCalendarIds) {
     return JSON.parse(savedCalendarIds);
   }
-  
+
   return [];
 }
 
@@ -220,265 +281,508 @@ function getSavedCalendarIds() {
 function saveConfiguration(e) {
   const formInputs = e.commonEventObject.formInputs;
   const userProperties = PropertiesService.getUserProperties();
-  
+
   // Save display name
   const displayName = formInputs.displayName.stringInputs.value[0];
-  userProperties.setProperty('displayName', displayName);
-  
+  userProperties.setProperty("displayName", displayName);
+
   // Save sync frequency
   const syncFrequency = formInputs.syncFrequency.stringInputs.value[0];
-  userProperties.setProperty('syncFrequency', syncFrequency);
-  
+  userProperties.setProperty("syncFrequency", syncFrequency);
+
   // Save selected calendars
   const selectedCalendarIds = [];
   for (let key in formInputs) {
-    if (key.startsWith('calendar_')) {
+    if (key.startsWith("calendar_")) {
       const selection = formInputs[key].stringInputs.value;
       if (selection && selection.length > 0) {
         selectedCalendarIds.push(selection[0]);
       }
     }
   }
-  
-  userProperties.setProperty('teamCalendarIds', JSON.stringify(selectedCalendarIds));
-  userProperties.setProperty('isConfigured', 'true');
-  
+
+  userProperties.setProperty(
+    "teamCalendarIds",
+    JSON.stringify(selectedCalendarIds)
+  );
+  userProperties.setProperty("isConfigured", "true");
+
   // Perform initial sync
   syncEvents();
-  
+
   // Set up automatic sync trigger
   setupTrigger();
-  
+
   // Return to homepage
   return createHomepageCard();
+}
+
+function syncEvents(e) {
+  const userProperties = PropertiesService.getUserProperties();
+  const teamCalendarIds = JSON.parse(
+    userProperties.getProperty("teamCalendarIds") || "[]"
+  );
+  const displayName = userProperties.getProperty("displayName");
+
+  if (!teamCalendarIds.length) {
+    return createNotificationCard(
+      "No team calendars configured",
+      "Please set up team calendars to sync with."
+    );
+  }
+
+  try {
+    // Get the user's primary calendar
+    const userCalendar = CalendarApp.getDefaultCalendar();
+
+    // Get the last sync time, if available
+    const lastSyncStr = userProperties.getProperty("lastSyncTime");
+    let lastSyncTime = lastSyncStr ? new Date(lastSyncStr) : null;
+
+    // If this is the first sync or last sync is too old, get all events for the next 3 months
+    const now = new Date();
+    const threeMonthsLater = new Date(
+      now.getFullYear(),
+      now.getMonth() + 3,
+      now.getDate()
+    );
+
+    // Store current sync time for the next sync operation
+    const currentSyncTime = now;
+
+    // Keep track of all current OOO events in the user's calendar
+    const currentOooEventIds = new Map();
+
+    // Get events from the primary calendar
+    let events;
+    if (lastSyncTime && now - lastSyncTime < 90 * 24 * 60 * 60 * 1000) {
+      // If last sync was within 90 days
+      Logger.log("Getting events updated since: " + lastSyncTime);
+      // events = userCalendar.getEvents(lastSyncTime, threeMonthsLater);
+    } else {
+      Logger.log("Getting all events for the next 3 months");
+      // events = userCalendar.getEvents(now, threeMonthsLater);
+    }
+
+    const user = Session.getActiveUser();
+    events = listEvents(user, 'default', now, threeMonthsLater, lastSyncTime);
+
+    if (events.count > 0) {
+      console.log('Got ' + events.count + ' events')
+    }
+
+
+    // Filter for OOO events (including PTO)
+    const oooEvents = events.filter(function (event) {
+      console.log(JSON.stringify(event));
+
+      const title = event.summary.toLowerCase();
+      const description = event.getDescription()
+        ? event.getDescription().toLowerCase()
+        : "";
+      Logger.log("Event title: " + title);
+
+      const isOoo =
+        title.includes("ooo") ||
+        title.includes("out of office") ||
+        title.includes("vacation") ||
+        title.includes("leave") ||
+        title.includes("pto");
+
+      if (isOoo) {
+        // Store this event's ID as a current OOO event
+        currentOooEventIds.set(event.getId(), true);
+      }
+
+      return isOoo;
+    });
+
+    var notificationCard;
+    if (oooEvents.length > 0) {
+      oooEvents.forEach(function (event) {
+        console.log(JSON.stringify(event));
+        console.log("Before import call");
+        importEvent(displayName, event, teamCalendarIds);
+      })
+
+      notificationCard = createNotificationCard(
+        "Sync Completed",
+        "Successfully synced " +
+        oooEvents.length +
+        " events across " +
+        teamCalendarIds.length +
+        " team calendars."
+      );
+    } else {
+      Logger.log("No events to syng");
+
+      notificationCard = createNotificationCard(
+        "No new OOO Events Found",
+        'No new OOO events were found in your calendar. Add events with "OOO", "Out of Office", or "Vacation" in the title.'
+      );
+    }
+
+    // Store the current sync time for the next sync operation
+    userProperties.setProperty("lastSyncTime", currentSyncTime.toISOString());
+    userProperties.setProperty("lastSync", currentSyncTime.toLocaleString());
+
+    return notificationCard;
+  } catch (error) {
+    Logger.log("Error syncing to calendar : " + error);
+
+    return createNotificationCard(
+      "Error During Sync",
+      "An error occurred during sync: " + error.toString()
+    );
+  }
+}
+
+function importEvent(username, event, teamCalendarIds) {
+  teamCalendarIds.forEach(function (calenderId) {
+
+    const title = event.summary;
+
+    event.title = '[' + username + ']' + title;
+
+    event.organizer = {
+      id: calenderId,
+    };
+    event.attendees = [];
+
+    // If the event is not of type 'default', it can't be imported, so it needs
+    // to be changed.
+    if (event.eventType != 'default') {
+      event.eventType = 'default';
+      delete event.outOfOfficeProperties;
+      delete event.focusTimeProperties;
+      delete event.workingLocationProperties;
+    }
+
+    console.log('Importing: %s', event.title);
+    try {
+      console.log(JSON.stringify(event));
+
+      Calendar.Events.import(event, calenderId);
+    } catch (e) {
+      console.error('Error attempting to import event: %s. Skipping.',
+        e.toString());
+    }
+  })
+}
+
+function listEvents(user, eventType = 'default', startDate, endDate, optSince) {
+  // Query parameters for the list request.
+  const params = {
+    eventTypes: [eventType],
+    showDeleted: true,
+    singleEvents: true,
+    timeMax: formatDateAsRFC3339(endDate),
+    timeMin: formatDateAsRFC3339(startDate),
+  }
+  if (optSince) {
+    // This prevents the script from examining events that have not been
+    // modified since the specified date (that is, the last time the
+    // script was run).
+    params.updatedMin = formatDateAsRFC3339(optSince);
+  }
+  try {
+    var response = Calendar.Events.list(user.getEmail(), params);
+    return response.items;
+  } catch (exception) {
+    console.log(exception.message);
+  }
+}
+
+function formatDateAsRFC3339(date) {
+  return Utilities.formatDate(date, 'UTC', 'yyyy-MM-dd\'T\'HH:mm:ssZ');
 }
 
 /**
  * Syncs OOO events to team calendars.
  */
-function syncEvents(e) {
+function syncEvents_old(e) {
   const userProperties = PropertiesService.getUserProperties();
-  const teamCalendarIds = JSON.parse(userProperties.getProperty('teamCalendarIds') || '[]');
-  const displayName = userProperties.getProperty('displayName');
-  
+  const teamCalendarIds = JSON.parse(
+    userProperties.getProperty("teamCalendarIds") || "[]"
+  );
+  const displayName = userProperties.getProperty("displayName");
+
   if (!teamCalendarIds.length) {
-    return createNotificationCard('No team calendars configured', 
-      'Please set up team calendars to sync with.');
+    return createNotificationCard(
+      "No team calendars configured",
+      "Please set up team calendars to sync with."
+    );
   }
-  
+
   try {
     // Get the user's primary calendar
     const userCalendar = CalendarApp.getDefaultCalendar();
-    
+
     // Get the last sync time, if available
-    const lastSyncStr = userProperties.getProperty('lastSyncTime');
+    const lastSyncStr = userProperties.getProperty("lastSyncTime");
     let lastSyncTime = lastSyncStr ? new Date(lastSyncStr) : null;
-    
+
     // If this is the first sync or last sync is too old, get all events for the next 3 months
     const now = new Date();
-    const threeMonthsLater = new Date(now.getFullYear(), now.getMonth() + 3, now.getDate());
-    
+    const threeMonthsLater = new Date(
+      now.getFullYear(),
+      now.getMonth() + 3,
+      now.getDate()
+    );
+
     // Store current sync time for the next sync operation
     const currentSyncTime = now;
-    
+
     // Keep track of all current OOO events in the user's calendar
     const currentOooEventIds = new Map();
-    
+
     // Get events from the primary calendar
     let events;
-    if (lastSyncTime && (now - lastSyncTime) < (90 * 24 * 60 * 60 * 1000)) { // If last sync was within 90 days
-      Logger.log('Getting events updated since: ' + lastSyncTime);
+    if (lastSyncTime && now - lastSyncTime < 90 * 24 * 60 * 60 * 1000) {
+      // If last sync was within 90 days
+      Logger.log("Getting events updated since: " + lastSyncTime);
       events = userCalendar.getEvents(lastSyncTime, threeMonthsLater);
     } else {
-      Logger.log('Getting all events for the next 3 months');
+      Logger.log("Getting all events for the next 3 months");
       events = userCalendar.getEvents(now, threeMonthsLater);
     }
-    
+
     // Filter for OOO events (including PTO)
-    const oooEvents = events.filter(function(event) {
+    const oooEvents = events.filter(function (event) {
       const title = event.getTitle().toLowerCase();
-      const description = event.getDescription() ? event.getDescription().toLowerCase() : '';
-      
-      const isOoo = title.includes('ooo') || 
-                    title.includes('out of office') || 
-                    title.includes('vacation') || 
-                    title.includes('leave') ||
-                    title.includes('pto') ||
-                    description.includes('ooo') ||
-                    description.includes('out of office') ||
-                    description.includes('pto');
-      
+      const description = event.getDescription()
+        ? event.getDescription().toLowerCase()
+        : "";
+      Logger.log("Event description: " + description);
+
+      const isOoo =
+        title.includes("ooo") ||
+        title.includes("out of office") ||
+        title.includes("vacation") ||
+        title.includes("leave") ||
+        title.includes("pto");
+
       if (isOoo) {
         // Store this event's ID as a current OOO event
         currentOooEventIds.set(event.getId(), true);
       }
-      
+
       return isOoo;
     });
-    
+
     // Process events
     let syncedCount = 0;
     let removedCount = 0;
-    
+
     // Sync new/updated OOO events to team calendars
     if (oooEvents.length > 0) {
-      teamCalendarIds.forEach(function(calendarId) {
+      teamCalendarIds.forEach(function (calendarId) {
         try {
           const teamCalendar = CalendarApp.getCalendarById(calendarId);
-          
+
           // Create a mapping of existing synced events in this team calendar
           const syncedEventsMap = new Map();
-          
+
           // Get all events in the team calendar that match our sync pattern
           const existingTeamEvents = teamCalendar.getEvents(
-            now, 
+            now,
             threeMonthsLater,
-            {search: displayName + ' - '});
-          
+            { search: displayName + " - " }
+          );
+
           // Store existing events in a map for quick lookup
-          existingTeamEvents.forEach(function(teamEvent) {
+          existingTeamEvents.forEach(function (teamEvent) {
             const title = teamEvent.getTitle();
-            const description = teamEvent.getDescription() || '';
-            
+            const description = teamEvent.getDescription() || "";
+
             // Only process events that were synced by this add-on
-            if (title.startsWith(displayName + ' - ') && 
-                description.includes('Automatically synced from ' + displayName)) {
-              
+            if (
+              title.startsWith(displayName + " - ") &&
+              description.includes("Automatically synced from " + displayName)
+            ) {
               // Extract the source event ID from the description
-              const sourceEventIdMatch = description.match(/Source Event ID: ([^\n]+)/);
+              const sourceEventIdMatch = description.match(
+                /Source Event ID: ([^\n]+)/
+              );
               if (sourceEventIdMatch) {
                 const sourceEventId = sourceEventIdMatch[1];
                 syncedEventsMap.set(sourceEventId, teamEvent);
               }
             }
           });
-          
+
           // Process each OOO event from the user's calendar
-          oooEvents.forEach(function(event) {
+          oooEvents.forEach(function (event) {
             const sourceEventId = event.getId();
-            
+
             // Check if this event already exists in the team calendar
             const existingEvent = syncedEventsMap.get(sourceEventId);
-            
+
             if (!existingEvent) {
               // Create new event in team calendar
               teamCalendar.createEvent(
-                displayName + ' - ' + event.getTitle(),
+                displayName + " - " + event.getTitle(),
                 event.getStartTime(),
                 event.getEndTime(),
                 {
-                  description: (event.getDescription() || '') + 
-                             '\n\nAutomatically synced from ' + displayName + '\'s calendar' +
-                             '\nSource Event ID: ' + sourceEventId,
+                  description:
+                    (event.getDescription() || "") +
+                    "\n\nAutomatically synced from " +
+                    displayName +
+                    "'s calendar" +
+                    "\nSource Event ID: " +
+                    sourceEventId,
                   location: event.getLocation(),
-                  guests: event.getGuestList().map(guest => guest.getEmail()).join(','),
-                  sendInvites: false
+                  guests: [],
+                  sendInvites: false,
                 }
               );
               syncedCount++;
             } else {
               // Update existing event if needed
               let needsUpdate = false;
-              
-              if (existingEvent.getTitle() !== displayName + ' - ' + event.getTitle()) {
-                existingEvent.setTitle(displayName + ' - ' + event.getTitle());
+
+              if (
+                existingEvent.getTitle() !==
+                displayName + " - " + event.getTitle()
+              ) {
+                existingEvent.setTitle(displayName + " - " + event.getTitle());
                 needsUpdate = true;
               }
-              
-              if (existingEvent.getStartTime().getTime() !== event.getStartTime().getTime() ||
-                  existingEvent.getEndTime().getTime() !== event.getEndTime().getTime()) {
+
+              if (
+                existingEvent.getStartTime().getTime() !==
+                event.getStartTime().getTime() ||
+                existingEvent.getEndTime().getTime() !==
+                event.getEndTime().getTime()
+              ) {
                 existingEvent.setTime(event.getStartTime(), event.getEndTime());
                 needsUpdate = true;
               }
-              
+
               if (existingEvent.getLocation() !== event.getLocation()) {
                 existingEvent.setLocation(event.getLocation());
                 needsUpdate = true;
               }
-              
-              const newDescription = (event.getDescription() || '') + 
-                                   '\n\nAutomatically synced from ' + displayName + '\'s calendar' +
-                                   '\nSource Event ID: ' + sourceEventId;
-              
+
+              const newDescription =
+                (event.getDescription() || "") +
+                "\n\nAutomatically synced from " +
+                displayName +
+                "'s calendar" +
+                "\nSource Event ID: " +
+                sourceEventId;
+
               if (existingEvent.getDescription() !== newDescription) {
                 existingEvent.setDescription(newDescription);
                 needsUpdate = true;
               }
-              
+
               if (needsUpdate) {
                 syncedCount++;
               }
-              
+
               // Mark this event as processed
               syncedEventsMap.delete(sourceEventId);
             }
           });
-          
+
           // Remove any synced events that no longer exist in the source calendar
-          syncedEventsMap.forEach(function(teamEvent) {
+          syncedEventsMap.forEach(function (teamEvent) {
             teamEvent.deleteEvent();
             removedCount++;
           });
-          
         } catch (error) {
-          Logger.log('Error syncing to calendar ' + calendarId + ': ' + error);
+          Logger.log("Error syncing to calendar " + calendarId + ": " + error);
         }
       });
     } else {
       // No OOO events found, remove all previously synced events
-      teamCalendarIds.forEach(function(calendarId) {
+      teamCalendarIds.forEach(function (calendarId) {
         try {
           const teamCalendar = CalendarApp.getCalendarById(calendarId);
-          
+
           // Get all events in the team calendar that match our sync pattern
           const existingTeamEvents = teamCalendar.getEvents(
-            now, 
+            now,
             threeMonthsLater,
-            {search: displayName + ' - '});
-          
+            { search: displayName + " - " }
+          );
+
           // Delete events that were synced by this add-on
-          existingTeamEvents.forEach(function(teamEvent) {
+          existingTeamEvents.forEach(function (teamEvent) {
             const title = teamEvent.getTitle();
-            const description = teamEvent.getDescription() || '';
-            
-            if (title.startsWith(displayName + ' - ') && 
-                description.includes('Automatically synced from ' + displayName)) {
+            const description = teamEvent.getDescription() || "";
+
+            if (
+              title.startsWith(displayName + " - ") &&
+              description.includes("Automatically synced from " + displayName)
+            ) {
               teamEvent.deleteEvent();
               removedCount++;
             }
           });
-          
         } catch (error) {
-          Logger.log('Error removing synced events from calendar ' + calendarId + ': ' + error);
+          Logger.log(
+            "Error removing synced events from calendar " +
+            calendarId +
+            ": " +
+            error
+          );
         }
       });
     }
-    
+
     // Store the current sync time for the next sync operation
-    userProperties.setProperty('lastSyncTime', currentSyncTime.toISOString());
-    userProperties.setProperty('lastSync', currentSyncTime.toLocaleString());
-    
+    userProperties.setProperty("lastSyncTime", currentSyncTime.toISOString());
+    userProperties.setProperty("lastSync", currentSyncTime.toLocaleString());
+
     // Return notification
     if (syncedCount > 0 && removedCount > 0) {
-      return createNotificationCard('Sync Completed', 
-        'Successfully synced ' + syncedCount + ' new OOO events and removed ' + removedCount + 
-        ' cancelled events across ' + teamCalendarIds.length + ' team calendars.');
+      return createNotificationCard(
+        "Sync Completed",
+        "Successfully synced " +
+        syncedCount +
+        " new OOO events and removed " +
+        removedCount +
+        " cancelled events across " +
+        teamCalendarIds.length +
+        " team calendars."
+      );
     } else if (syncedCount > 0) {
-      return createNotificationCard('Sync Completed', 
-        'Successfully synced ' + syncedCount + ' OOO events to ' + teamCalendarIds.length + ' team calendars.');
+      return createNotificationCard(
+        "Sync Completed",
+        "Successfully synced " +
+        syncedCount +
+        " OOO events to " +
+        teamCalendarIds.length +
+        " team calendars."
+      );
     } else if (removedCount > 0) {
-      return createNotificationCard('Sync Completed', 
-        'Successfully removed ' + removedCount + ' cancelled OOO events from ' + teamCalendarIds.length + ' team calendars.');
+      return createNotificationCard(
+        "Sync Completed",
+        "Successfully removed " +
+        removedCount +
+        " cancelled OOO events from " +
+        teamCalendarIds.length +
+        " team calendars."
+      );
     } else if (oooEvents.length === 0) {
-      return createNotificationCard('No OOO Events Found', 
-        'No OOO events were found in your calendar. Add events with "OOO", "Out of Office", or "Vacation" in the title.');
+      return createNotificationCard(
+        "No OOO Events Found",
+        'No OOO events were found in your calendar. Add events with "OOO", "Out of Office", or "Vacation" in the title.'
+      );
     } else {
-      return createNotificationCard('No Changes Detected', 
-        'All OOO events are already synced to team calendars.');
+      return createNotificationCard(
+        "No Changes Detected",
+        "All OOO events are already synced to team calendars."
+      );
     }
   } catch (error) {
-    return createNotificationCard('Error During Sync', 
-      'An error occurred during sync: ' + error.toString());
+    return createNotificationCard(
+      "Error During Sync",
+      "An error occurred during sync: " + error.toString()
+    );
   }
 }
 
@@ -487,18 +791,22 @@ function syncEvents(e) {
  */
 function createNotificationCard(title, message) {
   const card = CardService.newCardBuilder();
-  
+
   const section = CardService.newCardSection()
     .addWidget(CardService.newTextParagraph().setText(message))
-    .addWidget(CardService.newButtonSet()
-      .addButton(CardService.newTextButton()
-        .setText('Back to Home')
-        .setOnClickAction(CardService.newAction()
-          .setFunctionName('onHomepage'))));
-  
+    .addWidget(
+      CardService.newButtonSet().addButton(
+        CardService.newTextButton()
+          .setText("Back to Home")
+          .setOnClickAction(
+            CardService.newAction().setFunctionName("onHomepage")
+          )
+      )
+    );
+
   card.setHeader(CardService.newCardHeader().setTitle(title));
   card.addSection(section);
-  
+
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().pushCard(card.build()))
     .build();
@@ -510,21 +818,26 @@ function createNotificationCard(title, message) {
 function setupTrigger() {
   // Delete any existing triggers
   const triggers = ScriptApp.getProjectTriggers();
-  triggers.forEach(function(trigger) {
-    if (trigger.getHandlerFunction() === 'syncEvents') {
+  triggers.forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === "syncEvents") {
       ScriptApp.deleteTrigger(trigger);
     }
   });
-  
+
   // Get user-configured sync frequency (in hours) or use default (6 hours)
   const userProperties = PropertiesService.getUserProperties();
-  const syncFrequency = parseInt(userProperties.getProperty('syncFrequency')) || 6;
-  
+  const syncFrequency =
+    parseInt(userProperties.getProperty("syncFrequency")) || 6;
+
   // Create a new trigger to run at the specified frequency
-  ScriptApp.newTrigger('syncEvents')
+  ScriptApp.newTrigger("syncEvents")
     .timeBased()
     .everyHours(syncFrequency)
     .create();
-    
-  Logger.log('Trigger set up: Team Availability Sync will run every ' + syncFrequency + ' hours');
+
+  Logger.log(
+    "Trigger set up: Team Availability Sync will run every " +
+    syncFrequency +
+    " hours"
+  );
 }
