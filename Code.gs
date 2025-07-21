@@ -5,7 +5,7 @@
  * from a user's calendar to their team calendars.
  */
 
-const APP_VERSION = '1.0.3'; // Update this when making significant changes
+const APP_VERSION = '1.0.5'; // Update this when making significant changes
 
 /**
  * Runs when the add-on is installed.
@@ -373,15 +373,12 @@ function syncEvents(e) {
     events = [...defaultEvents, ...eventsWithOOOType];
 
     if (events.count > 0) {
-      console.log('Got ' + events.count + ' events')
+      Logger.log('Got ' + events.count + ' events')
     }
 
     // Filter for OOO events (including PTO)
     const oooEvents = events.filter(function (event) {
-      console.log(JSON.stringify(event));
-
       const title = event.summary.toLowerCase();
-      Logger.log("Event title: " + title);
 
       const isOoo =
         title.includes("ooo") ||
@@ -401,8 +398,6 @@ function syncEvents(e) {
     var notificationCard;
     if (oooEvents.length > 0) {
       oooEvents.forEach(function (event) {
-        console.log(JSON.stringify(event));
-        console.log("Before import call");
         importEvent(displayName, event, teamCalendarIds);
       })
 
@@ -415,7 +410,7 @@ function syncEvents(e) {
         " team calendars."
       );
     } else {
-      Logger.log("No events to syng");
+      Logger.log("No events to sync");
 
       notificationCard = createNotificationCard(
         "No new OOO Events Found",
@@ -439,30 +434,29 @@ function syncEvents(e) {
 }
 
 function importEvent(username, event, teamCalendarIds) {
-  teamCalendarIds.forEach(function (calenderId) {
-    event.summary = '[' + username + ']' + event.summary;
+  event.summary = '[' + username + '] ' + event.summary;
 
+
+  event.attendees = [];
+
+  // If the event is not of type 'default', it can't be imported, so it needs
+  // to be changed.
+  if (event.eventType != 'default') {
+    event.eventType = 'default';
+    delete event.outOfOfficeProperties;
+    delete event.focusTimeProperties;
+    delete event.workingLocationProperties;
+  }
+
+  teamCalendarIds.forEach(function (calenderId) {
     event.organizer = {
       id: calenderId,
     };
-    event.attendees = [];
-
-    // If the event is not of type 'default', it can't be imported, so it needs
-    // to be changed.
-    if (event.eventType != 'default') {
-      event.eventType = 'default';
-      delete event.outOfOfficeProperties;
-      delete event.focusTimeProperties;
-      delete event.workingLocationProperties;
-    }
-
-    console.log('Importing: %s', event.title);
+    Logger.log('Importing: %s', event.summary);
     try {
-      console.log(JSON.stringify(event));
-
       Calendar.Events.import(event, calenderId);
     } catch (e) {
-      console.error('Error attempting to import event: %s. Skipping.',
+      Logger.error('Error attempting to import event: %s. Skipping.',
         e.toString());
     }
   })
@@ -487,7 +481,7 @@ function listEvents(user, eventType = 'default', startDate, endDate, optSince) {
     var response = Calendar.Events.list(user.getEmail(), params);
     return response.items;
   } catch (exception) {
-    console.log(exception.message);
+    Logger.log(exception.message);
   }
 }
 
