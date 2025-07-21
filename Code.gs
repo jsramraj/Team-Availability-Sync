@@ -76,11 +76,13 @@ function createHomepageCard() {
     let lastSyncDisplay = "Never";
     if (lastSync) {
       try {
+        const defaultCalendar = CalendarApp.getDefaultCalendar();
+
         // Use user's time zone for formatting
         lastSyncDisplay = Utilities.formatDate(
           new Date(lastSync),
-          "GMT",
-          "yyyy-MM-dd HH:mm:ss 'GMT'"
+          defaultCalendar.getTimeZone(),
+          "yyyy-MM-dd HH:mm:ss 'z'"
         );
       } catch (e) {
         lastSyncDisplay = lastSync;
@@ -88,7 +90,7 @@ function createHomepageCard() {
     }
     mainSection.addWidget(
       CardService.newTextParagraph().setText(
-        "Last synced Test: " + lastSyncDisplay
+        "Last synced at: " + lastSyncDisplay
       )
     );
 
@@ -123,6 +125,7 @@ function createHomepageCard() {
     .displayAddOnCards([card.build()])
     .build();
 }
+
 
 /**
  * Shows the setup card to configure team calendars.
@@ -365,21 +368,19 @@ function syncEvents(e) {
     }
 
     const user = Session.getActiveUser();
-    events = listEvents(user, 'default', now, threeMonthsLater, lastSyncTime);
+    const defaultEvents = listEvents(user, 'default', now, threeMonthsLater, lastSyncTime);
+    const eventsWithOOOType = listEvents(user, 'outOfOffice', now, threeMonthsLater, lastSyncTime);
+    events = [...defaultEvents, ...eventsWithOOOType];
 
     if (events.count > 0) {
       console.log('Got ' + events.count + ' events')
     }
-
 
     // Filter for OOO events (including PTO)
     const oooEvents = events.filter(function (event) {
       console.log(JSON.stringify(event));
 
       const title = event.summary.toLowerCase();
-      const description = event.getDescription()
-        ? event.getDescription().toLowerCase()
-        : "";
       Logger.log("Event title: " + title);
 
       const isOoo =
@@ -439,10 +440,7 @@ function syncEvents(e) {
 
 function importEvent(username, event, teamCalendarIds) {
   teamCalendarIds.forEach(function (calenderId) {
-
-    const title = event.summary;
-
-    event.title = '[' + username + ']' + title;
+    event.summary = '[' + username + ']' + event.summary;
 
     event.organizer = {
       id: calenderId,
