@@ -170,6 +170,7 @@ function showSetupCard(e) {
 
   // Get saved sync frequency or use default (6 hours)
   const savedSyncFrequency = userProperties.getProperty("syncFrequency") || "6";
+  const shouldImportWfhEvents = userProperties.getProperty("shouldImportWfhEvents") === "true";
 
   // Add dropdown for sync frequency
   syncSettingsSection.addWidget(
@@ -185,7 +186,17 @@ function showSetupCard(e) {
       .addItem("24 hours", "24", savedSyncFrequency === "24")
   );
 
+    // ✅ Add “Include WFH Events” checkbox
+  syncSettingsSection.addWidget(
+    CardService.newSelectionInput()
+      .setType(CardService.SelectionInputType.CHECK_BOX)
+      .setTitle("Include WFH Events")
+      .setFieldName("shouldImportWfhEvents")
+      .addItem("Import events marked as Work From Home", "true", shouldImportWfhEvents)
+  );
+
   card.addSection(syncSettingsSection);
+
 
   // Create section for calendar selection
   const calendarSection = CardService.newCardSection().setHeader(
@@ -293,6 +304,12 @@ function saveConfiguration(e) {
   const syncFrequency = formInputs.syncFrequency.stringInputs.value[0];
   userProperties.setProperty("syncFrequency", syncFrequency);
 
+  // ✅ Save Include WFH setting
+  const shouldImportWfhEvents =
+    formInputs.shouldImportWfhEvents &&
+    formInputs.shouldImportWfhEvents.stringInputs.value.includes("true");
+  userProperties.setProperty("shouldImportWfhEvents", shouldImportWfhEvents);
+
   // Save selected calendars
   const selectedCalendarIds = [];
   for (let key in formInputs) {
@@ -346,13 +363,13 @@ function syncEvents(e) {
 
     // If last sync time is older than 89 days, clamp it
     if (lastSyncStr) {
-      const maxAgeMs = 89 * 24 * 60 * 60 * 1000; // 89 days
+      const maxAgeMs = 10 * 24 * 60 * 60 * 1000; // 89 days
       const oldestAllowed = new Date(now.getTime() - maxAgeMs);
       if (lastSyncTime < oldestAllowed) {
         Logger.log(
           `Last sync too old (${lastSyncTime}). Clamping to ${now}.`
         );
-        lastSyncTime = now;
+        lastSyncTime = oldestAllowed;
       }
     }
 
@@ -385,9 +402,7 @@ function syncEvents(e) {
     const eventsWithOOOType = listEvents(user, 'outOfOffice', now, threeMonthsLater, lastSyncTime);
     events = [...defaultEvents, ...eventsWithOOOType];
 
-    if (events.count > 0) {
-      console.log('Got ' + events.count + ' events')
-    }
+    console.log('Got ' + events?.length + ' events')
 
     // Filter for OOO events (including PTO)
     const oooEvents = events.filter(function (event) {
@@ -398,7 +413,9 @@ function syncEvents(e) {
         title.includes("out of office") ||
         title.includes("vacation") ||
         title.includes("leave") ||
-        title.includes("pto");
+        title.includes("pto") ||
+        title.includes("wfh") ||
+        title.includes("work from home");
 
       if (isOoo) {
         // Store this event's ID as a current OOO event
@@ -408,26 +425,39 @@ function syncEvents(e) {
       return isOoo;
     });
 
-    var notificationCard;
-    if (oooEvents.length > 0) {
-      oooEvents.forEach(function (event) {
+    const shouldImportWfhEvents = userProperties.getProperty('shouldImportWfhEvents') === 'true';
+    let wfhEvents;
+    let allEventsToImport = [...oooEvents];
+    if (shouldImportWfhEvents) {
+      const workingLocationEvents = listEvents(user, 'workingLocation', now, threeMonthsLater, lastSyncTime);
+      wfhEvents = filterWfhEvents(workingLocationEvents);
+      allEventsToImport = [...allEventsToImport, ...wfhEvents];
+    }
+
+    if (allEventsToImport.length > 0) {
+      allEventsToImport.forEach(function (event) {
         importEvent(displayName, event, teamCalendarIds);
-      })
+      });
 
       notificationCard = createNotificationCard(
         "Sync Completed",
         "Successfully synced " +
-        oooEvents.length +
-        " events across " +
-        teamCalendarIds.length +
-        " team calendars."
+          allEventsToImport.length +
+          " events (" +
+          oooEvents.length +
+          " OOO" +
+          (shouldImportWfhEvents ? " + " + wfhEvents.length + " WFH" : "") +
+          ") across " +
+          teamCalendarIds.length +
+          " team calendars."
       );
     } else {
       console.log("No events to sync");
-
       notificationCard = createNotificationCard(
-        "No new OOO Events Found",
-        'No new OOO events were found in your calendar. Add events with "OOO", "Out of Office", or "Vacation" in the title.'
+        "No new OOO or WFH Events Found",
+        shouldImportWfhEvents
+          ? 'No new OOO or WFH events were found in your calendar. Add events with "OOO", "Out of Office", "Vacation", or mark working location as "Home".'
+          : 'No new OOO events were found in your calendar. Add events with "OOO", "Out of Office", or "Vacation" in the title.'
       );
     }
 
@@ -444,6 +474,37 @@ function syncEvents(e) {
       "An error occurred during sync: " + error.toString()
     );
   }
+}
+
+function filterWfhEvents(workingLocationEvents) {
+  console.log(workingLocationEvents.length);
+
+  const wfhEvents = workingLocationEvents.filter(e => {
+    console.log(e.workingLocationProperties?.type);
+    return e.workingLocationProperties?.type === 'homeOffice';
+  });
+
+  console.log(wfhEvents.length);
+  return wfhEvents;
+  // const wfhEvents = workingLocationEvents.filter(e => {
+  //   console.log(e);
+  //   const workingLocationProps = e.workingLocationProperties;
+  //   if (!workingLocationProps) return false;
+
+  //   // Can be home office, custom location, or office
+  //   const home = workingLocationProps.homeOffice;
+  //   const custom = workingLocationProps.customLocation?.label;
+  //   const office = workingLocationProps.officeLocation?.buildingId;
+
+  //   // Check if any indicate "Home"
+  //   var wfhEvent = (
+  //     (home && home === true) ||
+  //     (custom && custom.toLowerCase().includes('home')) ||
+  //     (office && office.toLowerCase().includes('home'))
+  //   );
+  //   return wfhEvent;
+  // });
+  // return wfhEvents;
 }
 
 function importEvent(username, event, teamCalendarIds) {
@@ -490,6 +551,7 @@ function listEvents(user, eventType = 'default', startDate, endDate, optSince) {
     // script was run).
     params.updatedMin = formatDateAsRFC3339(optSince);
   }
+
   try {
     var response = Calendar.Events.list(user.getEmail(), params);
     return response.items;
