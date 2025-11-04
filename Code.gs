@@ -365,7 +365,6 @@ function syncEvents(e) {
     if (lastSyncStr) {
       const maxAgeMs = 10 * 24 * 60 * 60 * 1000; // 89 days
       const oldestAllowed = new Date(now.getTime() - maxAgeMs);
-      console.log(oldestAllowed);
       if (lastSyncTime < oldestAllowed) {
         Logger.log(
           `Last sync too old (${lastSyncTime}). Clamping to ${now}.`
