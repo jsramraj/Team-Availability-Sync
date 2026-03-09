@@ -344,7 +344,14 @@ function syncEvents(e) {
   );
   const displayName = userProperties.getProperty("displayName");
 
+  // Check if this is being called from a trigger (no UI context)
+  const isFromTrigger = !e || !e.commonEventObject;
+
   if (!teamCalendarIds.length) {
+    console.warn("No team calendars configured. Please set up team calendars to sync with.");
+    if (isFromTrigger) {
+      return; // Don't return CardService response for triggers
+    }
     return createNotificationCard(
       "No team calendars configured",
       "Please set up team calendars to sync with."
@@ -398,8 +405,8 @@ function syncEvents(e) {
     }
 
     const user = Session.getActiveUser();
-    const defaultEvents = listEvents(user, 'default', now, threeMonthsLater, lastSyncTime);
-    const eventsWithOOOType = listEvents(user, 'outOfOffice', now, threeMonthsLater, lastSyncTime);
+    const defaultEvents = listEvents(user, 'default', now, threeMonthsLater, lastSyncTime) || [];
+    const eventsWithOOOType = listEvents(user, 'outOfOffice', now, threeMonthsLater, lastSyncTime) || [];
     events = [...defaultEvents, ...eventsWithOOOType];
 
     console.log('Got ' + events?.length + ' events')
@@ -426,10 +433,10 @@ function syncEvents(e) {
     });
 
     const shouldImportWfhEvents = userProperties.getProperty('shouldImportWfhEvents') === 'true';
-    let wfhEvents;
+    let wfhEvents = [];
     let allEventsToImport = [...oooEvents];
     if (shouldImportWfhEvents) {
-      const workingLocationEvents = listEvents(user, 'workingLocation', now, threeMonthsLater, lastSyncTime);
+      const workingLocationEvents = listEvents(user, 'workingLocation', now, threeMonthsLater, lastSyncTime) || [];
       wfhEvents = filterWfhEvents(workingLocationEvents);
       allEventsToImport = [...allEventsToImport, ...wfhEvents];
     }
@@ -439,40 +446,48 @@ function syncEvents(e) {
         importEvent(displayName, event, teamCalendarIds);
       });
 
-      notificationCard = createNotificationCard(
-        "Sync Completed",
-        "Successfully synced " +
-          allEventsToImport.length +
-          " events (" +
-          oooEvents.length +
-          " OOO" +
-          (shouldImportWfhEvents ? " + " + wfhEvents.length + " WFH" : "") +
-          ") across " +
-          teamCalendarIds.length +
-          " team calendars."
-      );
+      if (!isFromTrigger) {
+        notificationCard = createNotificationCard(
+          "Sync Completed",
+          "Successfully synced " +
+            allEventsToImport.length +
+            " events (" +
+            oooEvents.length +
+            " OOO" +
+            (shouldImportWfhEvents ? " + " + wfhEvents.length + " WFH" : "") +
+            ") across " +
+            teamCalendarIds.length +
+            " team calendars."
+        );
+      }
     } else {
       console.log("No events to sync");
-      notificationCard = createNotificationCard(
-        "No new OOO or WFH Events Found",
-        shouldImportWfhEvents
-          ? 'No new OOO or WFH events were found in your calendar. Add events with "OOO", "Out of Office", "Vacation", or mark working location as "Home".'
-          : 'No new OOO events were found in your calendar. Add events with "OOO", "Out of Office", or "Vacation" in the title.'
-      );
+      if (!isFromTrigger) {
+        notificationCard = createNotificationCard(
+          "No new OOO or WFH Events Found",
+          shouldImportWfhEvents
+            ? 'No new OOO or WFH events were found in your calendar. Add events with "OOO", "Out of Office", "Vacation", or mark working location as "Home".'
+            : 'No new OOO events were found in your calendar. Add events with "OOO", "Out of Office", or "Vacation" in the title.'
+        );
+      }
     }
 
     // Store the current sync time for the next sync operation
     userProperties.setProperty("lastSyncTime", currentSyncTime.toISOString());
     userProperties.setProperty("lastSync", currentSyncTime.toLocaleString());
 
-    return notificationCard;
+    if (!isFromTrigger) {
+      return notificationCard;
+    }
   } catch (error) {
     console.error("Error syncing to calendar : " + error);
 
-    return createNotificationCard(
-      "Error During Sync",
-      "An error occurred during sync: " + error.toString()
-    );
+    if (!isFromTrigger) {
+      return createNotificationCard(
+        "Error During Sync",
+        "An error occurred during sync: " + error.toString()
+      );
+    }
   }
 }
 
@@ -516,7 +531,7 @@ function importEvent(username, event, teamCalendarIds) {
   // If the event is not of type 'default', it can't be imported, so it needs
   // to be changed.
   if (event.eventType != 'default') {
-    event.eventType = 'default';
+    event.eventType = 'default';  
     delete event.outOfOfficeProperties;
     delete event.focusTimeProperties;
     delete event.workingLocationProperties;
@@ -554,10 +569,11 @@ function listEvents(user, eventType = 'default', startDate, endDate, optSince) {
 
   try {
     var response = Calendar.Events.list(user.getEmail(), params);
-    return response.items;
+    return response.items || []; // Return empty array if items is null/undefined
   } catch (exception) {
       console.error('Error importing events: %s. Skipping.',
         exception.message);
+      return []; // Return empty array on error to prevent undefined issues
   }
 }
 
