@@ -3,6 +3,7 @@
 ## Get the Add-on
 
 - [Install Team Availability Sync from Google Workspace Marketplace](https://workspace.google.com/marketplace/app/team_availability_sync/237987738880)
+- [AppScript Project](https://script.google.com/d/14lZDdigFRGg8ccLr0HydBMRU4mDMl5JAoV-dUb0w3ptmdNGjPcsxTzG8/edit?usp=sharing) 
 
 ## Demo Video
 
