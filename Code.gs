@@ -5,7 +5,7 @@
  * from a user's calendar to their team calendars.
  */
 
-const APP_VERSION = '1.0.7'; // Update this when making significant changes
+const APP_VERSION = '1.0.9'; // Update this when making significant changes
 
 /**
  * Runs when the add-on is installed.
@@ -206,38 +206,56 @@ function showSetupCard(e) {
   // Get all available calendars
   const calendars = CalendarApp.getAllCalendars();
   const savedCalendarIds = getSavedCalendarIds();
+  
+  // Separate writable and read-only calendars
+  const writableCalendars = [];
+  const readOnlyCalendars = [];
 
   if (calendars.length > 0) {
     calendars.forEach(function (calendar) {
-      // Only include calendars where the user has write access
-      // Check if the calendar can be modified
       try {
-        // Try to get access level differently
         const calendarId = calendar.getId();
-        const isSelected = savedCalendarIds.indexOf(calendarId) !== -1;
         const isWritable = calendar.isOwnedByMe();
 
         if (isWritable) {
-          calendarSection.addWidget(
-            CardService.newSelectionInput()
-              .setType(CardService.SelectionInputType.CHECK_BOX)
-              .setFieldName("calendar_" + calendarId)
-              .addItem(calendar.getName(), calendarId, isSelected)
-          );
+          writableCalendars.push(calendar);
         } else {
-          // Add calendar with disabled checkbox for read-only calendars
-          calendarSection.addWidget(
-            CardService.newSelectionInput()
-              .setType(CardService.SelectionInputType.CHECK_BOX)
-              .setFieldName("calendar_" + calendarId)
-              .addItem(calendar.getName() + " (Read Only)", calendarId, false)
-              .setEnabled(false)
-          );
+          readOnlyCalendars.push(calendar);
         }
       } catch (error) {
         console.error("Error checking calendar access: " + error);
       }
     });
+    
+    // Add writable calendars first
+    writableCalendars.forEach(function (calendar) {
+      const calendarId = calendar.getId();
+      const isSelected = savedCalendarIds.indexOf(calendarId) !== -1;
+      
+      calendarSection.addWidget(
+        CardService.newSelectionInput()
+          .setType(CardService.SelectionInputType.CHECK_BOX)
+          .setFieldName("calendar_" + calendarId)
+          .addItem(calendar.getName(), calendarId, isSelected)
+      );
+    });
+    
+    // Add read-only calendars at the bottom if any exist
+    if (readOnlyCalendars.length > 0) {
+      calendarSection.addWidget(
+        CardService.newTextParagraph().setText(
+          "\n📌 Other calendars (read-only):"
+        )
+      );
+      
+      readOnlyCalendars.forEach(function (calendar) {
+        calendarSection.addWidget(
+          CardService.newTextParagraph().setText(
+            "• " + calendar.getName()
+          )
+        );
+      });
+    }
   } else {
     calendarSection.addWidget(
       CardService.newTextParagraph().setText(
@@ -308,7 +326,10 @@ function saveConfiguration(e) {
   const shouldImportWfhEvents =
     formInputs.shouldImportWfhEvents &&
     formInputs.shouldImportWfhEvents.stringInputs.value.includes("true");
-  userProperties.setProperty("shouldImportWfhEvents", shouldImportWfhEvents);
+  userProperties.setProperty(
+    "shouldImportWfhEvents",
+    shouldImportWfhEvents ? "true" : "false"
+  );
 
   // Save selected calendars
   const selectedCalendarIds = [];
