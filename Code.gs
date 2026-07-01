@@ -543,7 +543,47 @@ function filterWfhEvents(workingLocationEvents) {
   // return wfhEvents;
 }
 
-function importEvent(username, event, teamCalendarIds) {
+function isMidnightDateTime_(dateTimeStr) {
+  if (!dateTimeStr || dateTimeStr.indexOf('T') === -1) {
+    return false;
+  }
+
+  const timePart = dateTimeStr.split('T')[1] || '';
+  return timePart.indexOf('00:00') === 0;
+}
+
+function toDateOnlyFromDateTime_(dateTimeStr) {
+  return (dateTimeStr || '').split('T')[0];
+}
+
+function normalizeEventForImport_(event) {
+  const normalizedEvent = JSON.parse(JSON.stringify(event));
+  const hasDateOnly =
+    normalizedEvent.start && normalizedEvent.start.date &&
+    normalizedEvent.end && normalizedEvent.end.date;
+
+  if (hasDateOnly) {
+    return normalizedEvent;
+  }
+
+  const startDateTime = normalizedEvent.start && normalizedEvent.start.dateTime;
+  const endDateTime = normalizedEvent.end && normalizedEvent.end.dateTime;
+
+  // Convert midnight-to-midnight timed events into true all-day events.
+  if (isMidnightDateTime_(startDateTime) && isMidnightDateTime_(endDateTime)) {
+    normalizedEvent.start = {
+      date: toDateOnlyFromDateTime_(startDateTime),
+    };
+    normalizedEvent.end = {
+      date: toDateOnlyFromDateTime_(endDateTime),
+    };
+  }
+
+  return normalizedEvent;
+}
+
+function importEvent(username, rawEvent, teamCalendarIds) {
+  const event = normalizeEventForImport_(rawEvent);
   event.summary = '[' + username + '] ' + event.summary;
 
 

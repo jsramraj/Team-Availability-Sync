@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      :root {
+        --bg: #f6f8fb;
+        --panel: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --primary: #0f766e;
+        --primary-hover: #115e59;
+        --border: #d1d5db;
+        --ok: #166534;
+        --err: #b91c1c;
+      }
+
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family: "Google Sans", "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px;
+      }
+
+      h2 {
+        margin: 0 0 4px;
+        font-size: 18px;
+      }
+
+      .sub {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      label {
+        display: block;
+        margin: 10px 0 6px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 13px;
+      }
+
+      .row {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .btn {
+        margin-top: 14px;
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        padding: 9px 12px;
+        color: #fff;
+        background: var(--primary);
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .btn:hover {
+        background: var(--primary-hover);
+      }
+
+      .status {
+        margin-top: 10px;
+        font-size: 12px;
+        min-height: 16px;
+      }
+
+      .ok {
+        color: var(--ok);
+      }
+
+      .err {
+        color: var(--err);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>Sync Settings</h2>
+      <p class="sub">Saved per spreadsheet using document properties.</p>
+
+      <label for="calendarId">Team Calendar ID</label>
+      <input id="calendarId" type="text" placeholder="team@group.calendar.google.com" />
+
+      <div class="row">
+        <input id="includeWfh" type="checkbox" />
+        <label for="includeWfh" style="margin: 0; font-weight: 500;">Include WFH events</label>
+      </div>
+
+      <button class="btn" onclick="saveSettings()">Save Settings</button>
+      <div id="status" class="status"></div>
+    </div>
+
+    <script>
+      function setStatus(message, isError) {
+        const status = document.getElementById('status');
+        status.textContent = message;
+        status.className = 'status ' + (isError ? 'err' : 'ok');
+      }
+
+      function loadSettings() {
+        google.script.run
+          .withSuccessHandler(function (settings) {
+            document.getElementById('calendarId').value = settings.calendarId || '';
+            document.getElementById('includeWfh').checked = Boolean(settings.includeWfh);
+          })
+          .withFailureHandler(function (error) {
+            setStatus(error.message || 'Failed to load settings.', true);
+          })
+          .getSheetSyncSettings();
+      }
+
+      function saveSettings() {
+        const payload = {
+          calendarId: document.getElementById('calendarId').value,
+          includeWfh: document.getElementById('includeWfh').checked,
+        };
+
+        google.script.run
+          .withSuccessHandler(function () {
+            setStatus('Settings saved successfully.', false);
+          })
+          .withFailureHandler(function (error) {
+            setStatus(error.message || 'Failed to save settings.', true);
+          })
+          .saveSheetSyncSettings(payload);
+      }
+
+      loadSettings();
+    </script>
+  </body>
+</html>
