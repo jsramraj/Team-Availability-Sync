@@ -5,7 +5,7 @@
  * from a user's calendar to their team calendars.
  */
 
-const APP_VERSION = '1.0.9'; // Update this when making significant changes
+const APP_VERSION = '1.2'; // Update this when making significant changes
 
 /**
  * Runs when the add-on is installed.
@@ -115,6 +115,26 @@ function createHomepageCard() {
 
   mainSection.addWidget(
     CardService.newTextParagraph().setText(
+      "<b>Tired of a cluttered team calendar?</b> Try the companion Chrome extension, " +
+      "<b>Team Availability Viewer</b> — see who is on leave, working from home, or " +
+      "available in a clean, compact view"
+    )
+  );
+
+  mainSection.addWidget(
+    CardService.newButtonSet().addButton(
+      CardService.newTextButton()
+        .setText("Try It Out")
+        .setOpenLink(
+          CardService.newOpenLink().setUrl(
+            "https://jsramraj.github.io/apps/team-availability-viewer/"
+          )
+        )
+    )
+  );
+
+  mainSection.addWidget(
+    CardService.newTextParagraph().setText(
       "Version: " + APP_VERSION
     )
   );
@@ -215,7 +235,8 @@ function showSetupCard(e) {
     calendars.forEach(function (calendar) {
       try {
         const calendarId = calendar.getId();
-        const isWritable = calendar.isOwnedByMe();
+        // Excluding own primary calendar prevents imports overwriting source events (prefix stacking loop)
+        const isWritable = calendar.isOwnedByMe() && calendarId !== userEmail;
 
         if (isWritable) {
           writableCalendars.push(calendar);
@@ -332,11 +353,13 @@ function saveConfiguration(e) {
   );
 
   // Save selected calendars
+  const userEmail = Session.getActiveUser().getEmail();
   const selectedCalendarIds = [];
   for (let key in formInputs) {
     if (key.startsWith("calendar_")) {
       const selection = formInputs[key].stringInputs.value;
-      if (selection && selection.length > 0) {
+      // Never allow the user's own calendar as a sync target (causes prefix stacking loop)
+      if (selection && selection.length > 0 && selection[0] !== userEmail) {
         selectedCalendarIds.push(selection[0]);
       }
     }
@@ -360,9 +383,12 @@ function saveConfiguration(e) {
 
 function syncEvents(e) {
   const userProperties = PropertiesService.getUserProperties();
+  // Filter out own calendar from previously saved configs (self-import corrupts source events)
   const teamCalendarIds = JSON.parse(
     userProperties.getProperty("teamCalendarIds") || "[]"
-  );
+  ).filter(function (id) {
+    return id !== Session.getActiveUser().getEmail();
+  });
   const displayName = userProperties.getProperty("displayName");
 
   // Check if this is being called from a trigger (no UI context)
@@ -435,6 +461,11 @@ function syncEvents(e) {
     // Filter for OOO events (including PTO)
     const oooEvents = events.filter(function (event) {
       const title = (event.summary ?? '').toLowerCase();
+
+      // Skip events that already carry a name prefix (copies created by a previous import)
+      if (/^\s*\[.*?\]/.test(event.summary ?? '')) {
+        return false;
+      }
 
       const isOoo =
         title.includes("ooo") ||
@@ -584,8 +615,9 @@ function normalizeEventForImport_(event) {
 
 function importEvent(username, rawEvent, teamCalendarIds) {
   const event = normalizeEventForImport_(rawEvent);
-  event.summary = '[' + username + '] ' + event.summary;
-
+  // Strip any existing name prefixes so re-syncs never stack brackets
+  const baseSummary = (event.summary || '').replace(/^(\s*\[.*?\]\s*)+/, '');
+  event.summary = '[' + username + '] ' + baseSummary;
 
   event.attendees = [];
 
